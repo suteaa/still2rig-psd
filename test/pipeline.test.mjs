@@ -197,10 +197,24 @@ test('finalizes an explicit VTuber job with geometry and observed Eye/Brow parts
   assert.ok(manifest.character.body_center);
   assert.match(manifest.character.axis.source, /^paired_facial_features:eyewhite$/);
   assert.equal(manifest.character.orientation.facing, 'front');
-  assert.equal(manifest.processing.stage, 'eye_brow_split');
+  assert.equal(manifest.processing.stage, 'hair_foundation');
   assert.equal(manifest.processing.eye_brow_split.source_layers_preserved, true);
   assert.equal(manifest.processing.eye_brow_split.psd_hierarchy_pending, true);
   assert.equal(manifest.processing.eye_brow_split.relationships[0].checks.iris_within_eye_white, true);
+  assert.equal(manifest.processing.hair_foundation.source_layers_preserved, true);
+  assert.equal(manifest.processing.hair_foundation.final_parts_created, false);
+  assert.deepEqual(manifest.processing.hair_foundation.classifiers_pending, [
+    'front', 'side', 'back', 'sideburn', 'ahoge',
+  ]);
+  const hairAnalysisFile = path.join(PROJECT_ROOT, manifest.processing.hair_foundation.analysis_file);
+  assert.ok(fs.existsSync(hairAnalysisFile));
+  const hairAnalysis = JSON.parse(fs.readFileSync(hairAnalysisFile, 'utf8'));
+  assert.equal(hairAnalysis.schema, 'still2rig-vtuber-hair-analysis');
+  assert.equal(hairAnalysis.final_parts_created, false);
+  assert.deepEqual(hairAnalysis.layers.map((layer) => layer.source.source_tag), ['front hair', 'back hair']);
+  assert.ok(hairAnalysis.layers.every((layer) => layer.source.original_preserved));
+  assert.ok(hairAnalysis.layers.every((layer) => layer.components[0].depth));
+  assert.equal(manifest.parts.some((part) => part.id.startsWith('hair.')), false);
   for (const part of manifest.parts) {
     assert.equal(part.source_type, 'observed');
     assert.equal(part.generated_area_ratio, 0);

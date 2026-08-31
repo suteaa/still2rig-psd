@@ -8,6 +8,7 @@ import { runQa } from './qa.mjs';
 import { PROFILE_VTUBER, resolveJobProfile } from './profile.mjs';
 import { splitEyeBrowFromLayerDirectory } from './vtuber/eye-brow.mjs';
 import { createCharacterGeometryServiceFromLayerDirectory } from './vtuber/geometry.mjs';
+import { analyzeHairFromLayerDirectory } from './vtuber/hair-analysis.mjs';
 import { createInitialVtuberManifest, writeVtuberManifest } from './vtuber/manifest.mjs';
 import {
   PROJECT_ROOT,
@@ -197,6 +198,12 @@ function finalize(jobId, options) {
       geometryService,
       config: defaults.vtuber?.eyeBrow,
     });
+    const hair = analyzeHairFromLayerDirectory({
+      layerDir: path.join(root, 'processed', 'layers'),
+      outputFile: path.join(root, 'processed', 'vtuber', 'geometry', 'hair-analysis.json'),
+      geometryService,
+      config: defaults.vtuber?.hair,
+    });
     const vtuberManifest = createInitialVtuberManifest({
       width: assembled.build.canvas[0],
       height: assembled.build.canvas[1],
@@ -204,8 +211,9 @@ function finalize(jobId, options) {
       character: geometryService.character,
     });
     vtuberManifest.parts.push(...eyeBrow.parts);
-    vtuberManifest.processing.stage = 'eye_brow_split';
+    vtuberManifest.processing.stage = 'hair_foundation';
     vtuberManifest.processing.eye_brow_split = eyeBrow.processing;
+    vtuberManifest.processing.hair_foundation = hair.processing;
     writeVtuberManifest(vtuberManifestFile, vtuberManifest);
     vtuberManifestResult = {
       manifest: vtuberManifest,

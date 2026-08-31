@@ -34,6 +34,21 @@
       "eyelashMaximumEyeWhiteDistanceRatio": 1.0,
       "browMaximumFaceHeightDistanceRatio": 0.45,
       "browBelowEyeToleranceRatio": 0.5
+    },
+    "hair": {
+      "alphaThreshold": 16,
+      "minimumComponentPixels": 32,
+      "minimumCanvasAreaRatio": 0.00002,
+      "minimumCharacterAreaRatio": 0.00005,
+      "maximumComponentsPerLayer": 64,
+      "maximumContourPoints": 128,
+      "minimumPrincipalAnisotropy": 0.05,
+      "rootCandidateDistanceSlackRatio": 0.015,
+      "rootMaximumDistanceRatio": 0.2,
+      "rootMaximumCandidateFraction": 0.6,
+      "minimumRootConfidence": 0.45,
+      "minimumTipConfidence": 0.45,
+      "tipMinimumSeparationRatio": 0.08
     }
   },
   "quality": {

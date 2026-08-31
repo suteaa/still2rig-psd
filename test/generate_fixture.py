@@ -29,6 +29,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
 
     save_rect(args.output, "back hair.png", (12, 5, 84, 82), (70, 35, 20, 255))
+    save_rect(args.output, "back hair_depth.png", (12, 5, 84, 82), (96, 96, 96, 255))
     save_rect(args.output, "topwear.png", (18, 67, 78, 95), (40, 50, 70, 255))
     save_rect(args.output, "neck.png", (40, 55, 56, 78), (240, 185, 150, 255))
     save_rect(args.output, "face.png", (24, 15, 72, 67), (250, 205, 175, 255))
@@ -67,6 +68,7 @@ def main():
         draw.rectangle((55, 32, 63, 37), fill=(70, 30, 20, 255))
         image.save(args.output / "eye_close.png")
     save_rect(args.output, "front hair.png", (20, 5, 76, 28), (85, 45, 25, 255))
+    save_rect(args.output, "front hair_depth.png", (20, 5, 76, 28), (160, 160, 160, 255))
 
 
 if __name__ == "__main__":
