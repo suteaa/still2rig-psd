@@ -151,6 +151,19 @@ test('rejects invalid pixel geometry and accepts explicitly unknown optional geo
   assert.equal(validateVtuberManifest(unknown), unknown);
 });
 
+test('rejects unsafe derived raster paths for VTuber parts', () => {
+  assert.throws(
+    () => validateVtuberManifest(manifestWithPart({ raster: '../private/eye.png' })),
+    /raster must be a project-relative path/,
+  );
+  assert.throws(
+    () => validateVtuberManifest(manifestWithPart({ raster: '\\\\server\\private\\eye.png' })),
+    /raster must be a project-relative path/,
+  );
+  const manifest = manifestWithPart({ raster: '.still2rig-psd/jobs/demo/processed/vtuber/parts/eyes/Iris_L.png' });
+  assert.equal(validateVtuberManifest(manifest), manifest);
+});
+
 test('validates character geometry, axis, orientation, and confidence', () => {
   const valid = createInitialVtuberManifest({ width: 200, height: 300, psd: 'output/demo.psd' });
   valid.character = {

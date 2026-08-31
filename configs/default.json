@@ -22,6 +22,18 @@
       "minimumAxisEvidenceConfidence": 0.45,
       "minimumSideConfidence": 0.6,
       "centerBandRatio": 0.025
+    },
+    "eyeBrow": {
+      "alphaThreshold": 16,
+      "minimumComponentPixels": 8,
+      "minimumComponentAreaRatio": 0.00001,
+      "maximumComponentsPerLayer": 12,
+      "minimumPartConfidence": 0.55,
+      "singleComponentConfidenceCap": 0.78,
+      "irisMaximumEyeWhiteDistanceRatio": 0.55,
+      "eyelashMaximumEyeWhiteDistanceRatio": 1.0,
+      "browMaximumFaceHeightDistanceRatio": 0.45,
+      "browBelowEyeToleranceRatio": 0.5
     }
   },
   "quality": {

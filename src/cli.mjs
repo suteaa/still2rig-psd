@@ -6,7 +6,8 @@ import { colabBridgePaths, colabConnectionInfo } from './colab.mjs';
 import { listJobs, loadJob, prepareJob, updateJob } from './job.mjs';
 import { runQa } from './qa.mjs';
 import { PROFILE_VTUBER, resolveJobProfile } from './profile.mjs';
-import { analyzeCharacterGeometryFromLayerDirectory } from './vtuber/geometry.mjs';
+import { splitEyeBrowFromLayerDirectory } from './vtuber/eye-brow.mjs';
+import { createCharacterGeometryServiceFromLayerDirectory } from './vtuber/geometry.mjs';
 import { createInitialVtuberManifest, writeVtuberManifest } from './vtuber/manifest.mjs';
 import {
   PROJECT_ROOT,
@@ -183,18 +184,28 @@ function finalize(jobId, options) {
   let vtuberManifestResult = null;
   if (profile === PROFILE_VTUBER) {
     const vtuberManifestFile = path.join(root, 'output', 'vtuber_manifest.json');
-    const character = analyzeCharacterGeometryFromLayerDirectory({
+    const defaults = loadDefaults();
+    const geometryService = createCharacterGeometryServiceFromLayerDirectory({
       layerDir: path.join(root, 'processed', 'layers'),
       width: assembled.build.canvas[0],
       height: assembled.build.canvas[1],
-      config: loadDefaults().vtuber?.geometry,
+      config: defaults.vtuber?.geometry,
+    });
+    const eyeBrow = splitEyeBrowFromLayerDirectory({
+      layerDir: path.join(root, 'processed', 'layers'),
+      outputDir: path.join(root, 'processed', 'vtuber', 'parts', 'eyes'),
+      geometryService,
+      config: defaults.vtuber?.eyeBrow,
     });
     const vtuberManifest = createInitialVtuberManifest({
       width: assembled.build.canvas[0],
       height: assembled.build.canvas[1],
       psd: relativeProjectPath(outputPsd),
-      character,
+      character: geometryService.character,
     });
+    vtuberManifest.parts.push(...eyeBrow.parts);
+    vtuberManifest.processing.stage = 'eye_brow_split';
+    vtuberManifest.processing.eye_brow_split = eyeBrow.processing;
     writeVtuberManifest(vtuberManifestFile, vtuberManifest);
     vtuberManifestResult = {
       manifest: vtuberManifest,

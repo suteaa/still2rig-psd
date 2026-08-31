@@ -228,6 +228,16 @@ function assertPart(part, canvas, index) {
   }
   assertJointHints(part.joint_hints, `${name}.joint_hints`);
   assertSourceMapping(part, name);
+  if (part.raster !== undefined) {
+    assertOptionalString(part.raster, `${name}.raster`);
+    if (pathIsUnsafe(part.raster)) throw new Error(`${name}.raster must be a project-relative path.`);
+  }
+}
+
+function pathIsUnsafe(value) {
+  return typeof value === 'string'
+    && (value.startsWith('/') || value.startsWith('\\')
+      || /^[a-zA-Z]:[\\/]/.test(value) || value.split(/[\\/]/).includes('..'));
 }
 
 export function validateVtuberManifest(value) {

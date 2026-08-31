@@ -44,6 +44,16 @@ def main():
     image.save(args.output / "irides.png")
     image = layer()
     draw = ImageDraw.Draw(image)
+    draw.rectangle((30, 27, 44, 30), fill=(70, 30, 20, 255))
+    draw.rectangle((52, 27, 66, 30), fill=(70, 30, 20, 255))
+    image.save(args.output / "eyelash.png")
+    image = layer()
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((30, 22, 44, 25), fill=(85, 45, 25, 255))
+    draw.rectangle((52, 22, 66, 25), fill=(85, 45, 25, 255))
+    image.save(args.output / "eyebrow.png")
+    image = layer()
+    draw = ImageDraw.Draw(image)
     if args.mouth_patch:
         draw.rounded_rectangle((34, 44, 62, 60), radius=5, fill=(250, 245, 240, 255))
     else:

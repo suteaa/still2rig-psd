@@ -507,7 +507,7 @@ function readOptionalMask(layerDir, file, canvas) {
   return alphaMaskFromRgba(image);
 }
 
-export function analyzeCharacterGeometryFromLayerDirectory({ layerDir, width, height, config = {} }) {
+export function createCharacterGeometryServiceFromLayerDirectory({ layerDir, width, height, config = {} }) {
   const canvas = { width, height };
   assertCanvas(canvas);
   const masks = new Map();
@@ -519,13 +519,15 @@ export function analyzeCharacterGeometryFromLayerDirectory({ layerDir, width, he
   const bottomwear = read('bottomwear.png');
   const torsoMask = topwear || bottomwear;
   const overallMasks = OVERALL_LAYER_FILES.map(read).filter(Boolean);
-  return analyzeCharacterGeometry({
+  return new CharacterGeometryService({
     canvas,
     config,
     evidence: {
       pairedFeatureMasks: [
         { mask: read('eyewhite.png'), source: 'eyewhite' },
         { mask: read('irides.png'), source: 'irides' },
+        { mask: read('eyebrow.png'), source: 'eyebrow' },
+        { mask: read('eyelash.png'), source: 'eyelash' },
       ],
       faceMask: read('face.png'),
       neckMask: read('neck.png'),
@@ -534,4 +536,8 @@ export function analyzeCharacterGeometryFromLayerDirectory({ layerDir, width, he
       overallMask: overallMasks.length ? mergeAlphaMasks(overallMasks, canvas) : null,
     },
   });
+}
+
+export function analyzeCharacterGeometryFromLayerDirectory(options) {
+  return createCharacterGeometryServiceFromLayerDirectory(options).character;
 }

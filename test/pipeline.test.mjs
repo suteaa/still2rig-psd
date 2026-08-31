@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { afterEach, test } from 'node:test';
-import { buildPsd } from '../src/psd.mjs';
+import { buildPsd, readPngRgba } from '../src/psd.mjs';
 import { prepareJob } from '../src/job.mjs';
 import { runQa } from '../src/qa.mjs';
 import { PROJECT_ROOT, STATE_ROOT } from '../src/utils.mjs';
@@ -144,7 +144,7 @@ test('runs prepare, verified import, and finalize through the public CLI', () =>
   assert.ok(fs.existsSync(path.join(PROJECT_ROOT, repairedJob.result.psd)));
 });
 
-test('finalizes an explicit VTuber job with an initial sidecar manifest', () => {
+test('finalizes an explicit VTuber job with geometry and observed Eye/Brow parts', () => {
   const fixtureRoot = tempRoot('vtuber-fixture');
   const layerDir = fixture(fixtureRoot);
   const jobId = `vtuber-${process.pid}-${Date.now()}`;
@@ -182,12 +182,31 @@ test('finalizes an explicit VTuber job with an initial sidecar manifest', () => 
   assert.match(job.result.vtuberManifestSha256, /^[0-9a-f]{64}$/);
   assert.equal(manifest.processing.psd, job.result.psd);
   assert.deepEqual(manifest.canvas, { width: 96, height: 96 });
-  assert.deepEqual(manifest.parts, []);
+  assert.deepEqual(manifest.parts.map((part) => part.id).sort(), [
+    'brow.left',
+    'brow.right',
+    'eye.left.iris',
+    'eye.left.lash',
+    'eye.left.white',
+    'eye.right.iris',
+    'eye.right.lash',
+    'eye.right.white',
+  ]);
   assert.ok(manifest.character.character_center);
   assert.ok(manifest.character.face_center);
   assert.ok(manifest.character.body_center);
   assert.match(manifest.character.axis.source, /^paired_facial_features:eyewhite$/);
   assert.equal(manifest.character.orientation.facing, 'front');
-  assert.equal(manifest.processing.stage, 'character_geometry');
+  assert.equal(manifest.processing.stage, 'eye_brow_split');
+  assert.equal(manifest.processing.eye_brow_split.source_layers_preserved, true);
+  assert.equal(manifest.processing.eye_brow_split.psd_hierarchy_pending, true);
+  assert.equal(manifest.processing.eye_brow_split.relationships[0].checks.iris_within_eye_white, true);
+  for (const part of manifest.parts) {
+    assert.equal(part.source_type, 'observed');
+    assert.equal(part.generated_area_ratio, 0);
+    const raster = path.join(PROJECT_ROOT, part.raster);
+    assert.ok(fs.existsSync(raster), part.id);
+    assert.deepEqual(readPngRgba(raster).width, 96);
+  }
   assert.equal(manifest.qa.status, 'not_evaluated');
 });
