@@ -12,6 +12,7 @@ import {
   readJson,
 } from './utils.mjs';
 import { generateColabCells } from './colab.mjs';
+import { parseProfile, withResolvedJobProfile } from './profile.mjs';
 
 const allowedExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 
@@ -25,8 +26,9 @@ function verifyMagic(file, extension) {
   if (extension === '.webp' && !webp) throw new Error('The .webp input does not have a WebP signature.');
 }
 
-export function prepareJob(inputValue, requestedName) {
-  if (!inputValue) throw new Error('Usage: still2rig-psd prepare IMAGE [--name JOB]');
+export function prepareJob(inputValue, requestedName, profileValue) {
+  if (!inputValue) throw new Error('Usage: still2rig-psd prepare IMAGE [--name JOB] [--profile standard|vtuber]');
+  const profile = parseProfile(profileValue);
   const input = path.resolve(inputValue);
   const stat = fs.statSync(input);
   if (!stat.isFile()) throw new Error('Input must be a regular file.');
@@ -55,6 +57,7 @@ export function prepareJob(inputValue, requestedName) {
     jobId,
     createdAt: new Date().toISOString(),
     state: 'prepared',
+    profile,
     input: {
       file: relativeProjectPath(copiedInput),
       mediaType: extension === '.png' ? 'image/png' : extension === '.webp' ? 'image/webp' : 'image/jpeg',
@@ -76,12 +79,12 @@ export function loadJob(jobId) {
   const root = jobRoot(jobId);
   const file = path.join(root, 'job.json');
   if (!fs.existsSync(file)) throw new Error(`Unknown job: ${jobId}`);
-  return { root, manifest: readJson(file) };
+  return { root, manifest: withResolvedJobProfile(readJson(file)) };
 }
 
 export function updateJob(jobId, mutate) {
   const { root, manifest } = loadJob(jobId);
-  const next = mutate(structuredClone(manifest)) || manifest;
+  const next = withResolvedJobProfile(mutate(structuredClone(manifest)) || manifest);
   writeJson(path.join(root, 'job.json'), next);
   return next;
 }
@@ -92,7 +95,7 @@ export function listJobs() {
     .filter((entry) => entry.isDirectory())
     .map((entry) => {
       try {
-        return readJson(path.join(JOBS_ROOT, entry.name, 'job.json'));
+        return withResolvedJobProfile(readJson(path.join(JOBS_ROOT, entry.name, 'job.json')));
       } catch {
         return { jobId: entry.name, state: 'invalid' };
       }

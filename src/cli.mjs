@@ -5,6 +5,8 @@ import { buildPsd } from './psd.mjs';
 import { colabBridgePaths, colabConnectionInfo } from './colab.mjs';
 import { listJobs, loadJob, prepareJob, updateJob } from './job.mjs';
 import { runQa } from './qa.mjs';
+import { PROFILE_VTUBER, resolveJobProfile } from './profile.mjs';
+import { createInitialVtuberManifest, writeVtuberManifest } from './vtuber/manifest.mjs';
 import {
   PROJECT_ROOT,
   jobRoot,
@@ -21,7 +23,7 @@ function usage() {
 
 Usage:
   still2rig-psd doctor [--json]
-  still2rig-psd prepare IMAGE [--name JOB]
+  still2rig-psd prepare IMAGE [--name JOB] [--profile standard|vtuber]
   still2rig-psd colab-url [--json]
   still2rig-psd cell JOB CELL_FILE
   still2rig-psd import JOB RESULT.zip
@@ -165,7 +167,8 @@ function assembleArtifacts({ jobId, root, options, outputPsd, layerDir, reportsR
 }
 
 function finalize(jobId, options) {
-  const { root } = loadJob(jobId);
+  const { root, manifest: jobManifest } = loadJob(jobId);
+  const profile = resolveJobProfile(jobManifest);
   const outputPsd = path.join(root, 'output', `${jobId}.psd`);
   if (fs.existsSync(outputPsd)) throw new Error('This job is already finalized. Use repair to preserve the existing result.');
   const assembled = assembleArtifacts({
@@ -176,6 +179,20 @@ function finalize(jobId, options) {
     layerDir: path.join(root, 'processed', 'layers'),
     reportsRoot: path.join(root, 'reports'),
   });
+  let vtuberManifestResult = null;
+  if (profile === PROFILE_VTUBER) {
+    const vtuberManifestFile = path.join(root, 'output', 'vtuber_manifest.json');
+    const vtuberManifest = createInitialVtuberManifest({
+      width: assembled.build.canvas[0],
+      height: assembled.build.canvas[1],
+      psd: relativeProjectPath(outputPsd),
+    });
+    writeVtuberManifest(vtuberManifestFile, vtuberManifest);
+    vtuberManifestResult = {
+      manifest: vtuberManifest,
+      file: vtuberManifestFile,
+    };
+  }
   updateJob(jobId, (job) => ({
     ...job,
     updatedAt: new Date().toISOString(),
@@ -187,9 +204,18 @@ function finalize(jobId, options) {
       qaReport: relativeProjectPath(assembled.qaReportFile),
       contactSheet: relativeProjectPath(assembled.contactSheet),
       productionReady: assembled.qa.productionReady,
+      ...(vtuberManifestResult ? {
+        vtuberManifest: relativeProjectPath(vtuberManifestResult.file),
+        vtuberManifestSha256: sha256File(vtuberManifestResult.file),
+      } : {}),
     },
   }));
-  return { jobId, build: assembled.build, qa: assembled.qa };
+  return {
+    jobId,
+    build: assembled.build,
+    qa: assembled.qa,
+    ...(vtuberManifestResult ? { vtuberManifest: vtuberManifestResult.manifest } : {}),
+  };
 }
 
 function nextRepairId(root) {
@@ -300,7 +326,7 @@ export async function main(argv = process.argv.slice(2)) {
     print(result, options.json);
     if (!result.ok) process.exitCode = 1;
   } else if (command === 'prepare') {
-    print(prepareJob(positional[0], options.name), true);
+    print(prepareJob(positional[0], options.name, options.profile), true);
   } else if (command === 'colab-url') {
     print(colabConnectionInfo(), options.json);
   } else if (command === 'cell') {

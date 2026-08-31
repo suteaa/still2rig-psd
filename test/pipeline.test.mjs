@@ -7,6 +7,7 @@ import { buildPsd } from '../src/psd.mjs';
 import { prepareJob } from '../src/job.mjs';
 import { runQa } from '../src/qa.mjs';
 import { PROJECT_ROOT, STATE_ROOT } from '../src/utils.mjs';
+import { readVtuberManifest } from '../src/vtuber/manifest.mjs';
 
 const roots = [];
 
@@ -119,7 +120,10 @@ test('runs prepare, verified import, and finalize through the public CLI', () =>
   const job = JSON.parse(fs.readFileSync(path.join(jobDir, 'job.json'), 'utf8'));
   const finalizedQa = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, job.result.qaReport), 'utf8'));
   assert.equal(job.state, 'production-structure-ready', JSON.stringify(finalizedQa, null, 2));
+  assert.equal(job.profile, 'standard');
   assert.equal(job.result.productionReady, true);
+  assert.equal(Object.hasOwn(job.result, 'vtuberManifest'), false);
+  assert.equal(fs.existsSync(path.join(jobDir, 'output', 'vtuber_manifest.json')), false);
   assert.ok(fs.existsSync(path.join(PROJECT_ROOT, job.result.psd)));
   const inspection = JSON.parse(fs.readFileSync(path.join(jobDir, 'reports', 'layer-inspection.json'), 'utf8'));
   assert.deepEqual(inspection.layerOverrides, ['topwear.png']);
@@ -138,4 +142,46 @@ test('runs prepare, verified import, and finalize through the public CLI', () =>
   assert.equal(repairedJob.result.repairs.length, 1);
   assert.ok(fs.existsSync(path.join(PROJECT_ROOT, repairedJob.result.repairs[0].before.psd)));
   assert.ok(fs.existsSync(path.join(PROJECT_ROOT, repairedJob.result.psd)));
+});
+
+test('finalizes an explicit VTuber job with an initial sidecar manifest', () => {
+  const fixtureRoot = tempRoot('vtuber-fixture');
+  const layerDir = fixture(fixtureRoot);
+  const jobId = `vtuber-${process.pid}-${Date.now()}`;
+  const source = path.join(layerDir, 'face.png');
+  const prepared = prepareJob(source, jobId, 'vtuber');
+  const jobDir = path.join(STATE_ROOT, 'jobs', jobId);
+  roots.push(jobDir);
+  assert.equal(prepared.profile, 'vtuber');
+
+  const archive = path.join(fixtureRoot, `${jobId}.zip`);
+  const packed = spawnSync('python3', [
+    path.join(PROJECT_ROOT, 'test', 'make_result_bundle.py'),
+    '--layers', layerDir,
+    '--archive', archive,
+    '--input-sha256', prepared.input.sha256,
+    '--job', jobId,
+  ], { encoding: 'utf8' });
+  assert.equal(packed.status, 0, packed.stderr);
+
+  const imported = spawnSync(process.execPath, [
+    path.join(PROJECT_ROOT, 'bin', 'still2rig-psd.mjs'), 'import', jobId, archive,
+  ], { cwd: PROJECT_ROOT, encoding: 'utf8' });
+  assert.equal(imported.status, 0, imported.stderr);
+
+  const finalized = spawnSync(process.execPath, [
+    path.join(PROJECT_ROOT, 'bin', 'still2rig-psd.mjs'), 'finalize', jobId,
+  ], { cwd: PROJECT_ROOT, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
+  assert.equal(finalized.status, 0, finalized.stderr);
+
+  const job = JSON.parse(fs.readFileSync(path.join(jobDir, 'job.json'), 'utf8'));
+  const manifestFile = path.join(PROJECT_ROOT, job.result.vtuberManifest);
+  const manifest = readVtuberManifest(manifestFile);
+  assert.equal(job.profile, 'vtuber');
+  assert.equal(job.result.productionReady, true);
+  assert.match(job.result.vtuberManifestSha256, /^[0-9a-f]{64}$/);
+  assert.equal(manifest.processing.psd, job.result.psd);
+  assert.deepEqual(manifest.canvas, { width: 96, height: 96 });
+  assert.deepEqual(manifest.parts, []);
+  assert.equal(manifest.qa.status, 'not_evaluated');
 });
