@@ -183,5 +183,11 @@ test('finalizes an explicit VTuber job with an initial sidecar manifest', () => 
   assert.equal(manifest.processing.psd, job.result.psd);
   assert.deepEqual(manifest.canvas, { width: 96, height: 96 });
   assert.deepEqual(manifest.parts, []);
+  assert.ok(manifest.character.character_center);
+  assert.ok(manifest.character.face_center);
+  assert.ok(manifest.character.body_center);
+  assert.match(manifest.character.axis.source, /^paired_facial_features:eyewhite$/);
+  assert.equal(manifest.character.orientation.facing, 'front');
+  assert.equal(manifest.processing.stage, 'character_geometry');
   assert.equal(manifest.qa.status, 'not_evaluated');
 });

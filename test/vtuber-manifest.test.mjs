@@ -46,9 +46,27 @@ test('creates a schema-versioned initial VTuber manifest without fabricated part
   assert.equal(manifest.profile, 'vtuber');
   assert.deepEqual(manifest.parts, []);
   assert.deepEqual(manifest.character, {
+    character_center: null,
     face_center: null,
     body_center: null,
+    character_bbox: null,
+    face_bbox: null,
+    body_bbox: null,
+    axis: null,
     axis_confidence: null,
+    orientation: null,
+    confidence: {
+      character_center: null,
+      face_center: null,
+      body_center: null,
+    },
+    evidence: {
+      character_center: null,
+      face_center: null,
+      body_center: null,
+      axis: null,
+      orientation: null,
+    },
   });
   assert.equal(manifest.coordinate_system.side, 'character_relative');
   assert.equal(manifest.qa.status, 'not_evaluated');
@@ -131,4 +149,37 @@ test('rejects invalid pixel geometry and accepts explicitly unknown optional geo
   );
   const unknown = manifestWithPart({ bbox: null, centroid: null, pivot_hint: null });
   assert.equal(validateVtuberManifest(unknown), unknown);
+});
+
+test('validates character geometry, axis, orientation, and confidence', () => {
+  const valid = createInitialVtuberManifest({ width: 200, height: 300, psd: 'output/demo.psd' });
+  valid.character = {
+    ...valid.character,
+    character_center: [0.5, 0.52],
+    face_center: [0.5, 0.2],
+    body_center: [0.5, 0.65],
+    character_bbox: [20, 10, 180, 300],
+    face_bbox: [60, 20, 140, 100],
+    body_bbox: [40, 110, 160, 290],
+    axis: { origin: [0.5, 0.2], direction: [0, 1], source: 'paired_facial_features' },
+    axis_confidence: 0.94,
+    orientation: { facing: 'front', confidence: 0.94, source: 'paired_facial_features' },
+    confidence: { character_center: 0.8, face_center: 0.9, body_center: 0.85 },
+    evidence: {
+      character_center: 'overall_character_mask',
+      face_center: 'face_mask',
+      body_center: 'neck_torso_geometry',
+      axis: 'paired_facial_features',
+      orientation: 'paired_facial_features',
+    },
+  };
+  assert.equal(validateVtuberManifest(valid), valid);
+
+  const badAxis = structuredClone(valid);
+  badAxis.character.axis.direction = [0, 2];
+  assert.throws(() => validateVtuberManifest(badAxis), /direction must be a unit vector/);
+
+  const badOrientation = structuredClone(valid);
+  badOrientation.character.orientation.facing = 'viewer-left';
+  assert.throws(() => validateVtuberManifest(badOrientation), /orientation.facing must be one of/);
 });

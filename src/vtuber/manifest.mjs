@@ -1,5 +1,6 @@
 import { readJson, writeJson } from '../utils.mjs';
 import { PROFILE_VTUBER } from '../profile.mjs';
+import { CHARACTER_ORIENTATIONS, emptyCharacterGeometry } from './geometry.mjs';
 
 export const VTUBER_MANIFEST_SCHEMA = 'still2rig-vtuber';
 export const VTUBER_MANIFEST_SCHEMA_VERSION = 1;
@@ -74,6 +75,45 @@ function assertCoordinateSystem(value) {
   }
   if (value.side !== 'character_relative') {
     throw new Error('coordinate_system.side must be character_relative.');
+  }
+}
+
+function assertCharacterAxis(value, name) {
+  if (value === null || value === undefined) return;
+  assertRecord(value, name);
+  assertNormalizedPoint(value.origin, `${name}.origin`);
+  if (!Array.isArray(value.direction) || value.direction.length !== 2) {
+    throw new Error(`${name}.direction must be a finite unit [x, y] vector.`);
+  }
+  value.direction.forEach((coordinate, index) => assertFiniteNumber(coordinate, `${name}.direction[${index}]`));
+  const length = Math.hypot(...value.direction);
+  if (Math.abs(length - 1) > 0.000001) throw new Error(`${name}.direction must be a unit vector.`);
+  assertOptionalString(value.source, `${name}.source`);
+}
+
+function assertCharacterOrientation(value, name) {
+  if (value === null || value === undefined) return;
+  assertRecord(value, name);
+  if (!CHARACTER_ORIENTATIONS.includes(value.facing)) {
+    throw new Error(`${name}.facing must be one of: ${CHARACTER_ORIENTATIONS.join(', ')}.`);
+  }
+  assertUnitInterval(value.confidence, `${name}.confidence`);
+  assertOptionalString(value.source, `${name}.source`);
+}
+
+function assertNullableConfidenceRecord(value, name) {
+  if (value === undefined) return;
+  assertRecord(value, name);
+  for (const field of ['character_center', 'face_center', 'body_center']) {
+    if (value[field] !== undefined) assertUnitInterval(value[field], `${name}.${field}`, { nullable: true });
+  }
+}
+
+function assertCharacterEvidence(value, name) {
+  if (value === undefined) return;
+  assertRecord(value, name);
+  for (const field of ['character_center', 'face_center', 'body_center', 'axis', 'orientation']) {
+    if (value[field] !== undefined) assertOptionalString(value[field], `${name}.${field}`);
   }
 }
 
@@ -202,14 +242,23 @@ export function validateVtuberManifest(value) {
   assertCoordinateSystem(value.coordinate_system);
   assertCanvas(value.canvas);
   assertRecord(value.character, 'character');
-  for (const name of ['face_center', 'body_center']) {
+  for (const name of ['character_center', 'face_center', 'body_center']) {
     if (value.character[name] !== undefined) {
       assertNormalizedPoint(value.character[name], `character.${name}`, { nullable: true });
     }
   }
+  for (const name of ['character_bbox', 'face_bbox', 'body_bbox']) {
+    if (value.character[name] !== undefined) {
+      assertBoundingBox(value.character[name], value.canvas, `character.${name}`);
+    }
+  }
+  assertCharacterAxis(value.character.axis, 'character.axis');
   if (value.character.axis_confidence !== undefined) {
     assertUnitInterval(value.character.axis_confidence, 'character.axis_confidence', { nullable: true });
   }
+  assertCharacterOrientation(value.character.orientation, 'character.orientation');
+  assertNullableConfidenceRecord(value.character.confidence, 'character.confidence');
+  assertCharacterEvidence(value.character.evidence, 'character.evidence');
   if (!Array.isArray(value.parts)) throw new Error('parts must be an array.');
   const ids = new Set();
   value.parts.forEach((part, index) => {
@@ -222,7 +271,7 @@ export function validateVtuberManifest(value) {
   return value;
 }
 
-export function createInitialVtuberManifest({ width, height, psd }) {
+export function createInitialVtuberManifest({ width, height, psd, character = null }) {
   if (typeof psd !== 'string' || !psd.trim()) throw new Error('Initial VTuber manifest requires a PSD path.');
   const manifest = {
     schema: VTUBER_MANIFEST_SCHEMA,
@@ -235,14 +284,10 @@ export function createInitialVtuberManifest({ width, height, psd }) {
       side: 'character_relative',
     },
     canvas: { width, height },
-    character: {
-      face_center: null,
-      body_center: null,
-      axis_confidence: null,
-    },
+    character: character || emptyCharacterGeometry(),
     parts: [],
     processing: {
-      stage: 'schema_plumbing',
+      stage: 'character_geometry',
       detailed_segmentation: false,
       psd,
     },

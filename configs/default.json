@@ -15,6 +15,15 @@
     "port": 0,
     "connectTimeoutSeconds": 3600
   },
+  "vtuber": {
+    "geometry": {
+      "alphaThreshold": 16,
+      "minimumComponentPixels": 4,
+      "minimumAxisEvidenceConfidence": 0.45,
+      "minimumSideConfidence": 0.6,
+      "centerBandRatio": 0.025
+    }
+  },
   "quality": {
     "alphaThreshold": 16,
     "minimumComponentPixels": 40,

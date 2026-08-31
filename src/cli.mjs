@@ -6,6 +6,7 @@ import { colabBridgePaths, colabConnectionInfo } from './colab.mjs';
 import { listJobs, loadJob, prepareJob, updateJob } from './job.mjs';
 import { runQa } from './qa.mjs';
 import { PROFILE_VTUBER, resolveJobProfile } from './profile.mjs';
+import { analyzeCharacterGeometryFromLayerDirectory } from './vtuber/geometry.mjs';
 import { createInitialVtuberManifest, writeVtuberManifest } from './vtuber/manifest.mjs';
 import {
   PROJECT_ROOT,
@@ -182,10 +183,17 @@ function finalize(jobId, options) {
   let vtuberManifestResult = null;
   if (profile === PROFILE_VTUBER) {
     const vtuberManifestFile = path.join(root, 'output', 'vtuber_manifest.json');
+    const character = analyzeCharacterGeometryFromLayerDirectory({
+      layerDir: path.join(root, 'processed', 'layers'),
+      width: assembled.build.canvas[0],
+      height: assembled.build.canvas[1],
+      config: loadDefaults().vtuber?.geometry,
+    });
     const vtuberManifest = createInitialVtuberManifest({
       width: assembled.build.canvas[0],
       height: assembled.build.canvas[1],
       psd: relativeProjectPath(outputPsd),
+      character,
     });
     writeVtuberManifest(vtuberManifestFile, vtuberManifest);
     vtuberManifestResult = {
